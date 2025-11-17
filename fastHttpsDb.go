@@ -726,7 +726,7 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 		}
 		if han.dbg {fmt.Printf("dbg -- Id: %d\n", id)}
 
-		liQuery := "select * from notes where pid=$1;"
+		liQuery := "select * from notes where pid=$1 order by id desc;"
 		rows, err := dbpool.Query(ctx, liQuery, id)
 		if err != nil {
 			ctx.Response.SetStatusCode(405)
@@ -770,7 +770,6 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(405)
 			return
 		}
-
 	    query := "insert into notes (pid, txt, created) values ($1, $2, $3);"
 	    tag, err := dbpool.Exec(ctx, query, id, txtStr, time.Now())
 		if err != nil {log.Fatalf("error -- insert failed: %v\n", err)}
