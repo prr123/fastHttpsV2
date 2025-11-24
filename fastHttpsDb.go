@@ -95,6 +95,10 @@ type scrIns struct {
 	src int
 }
 
+type jsNote struct {
+	Id int `json:"id"`
+	Txt string `json:"txt"`
+}
 
 var hmap = make(map[string]func(h Handler, ctx *fasthttp.RequestCtx))
 
@@ -560,6 +564,8 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 	if han.dbg {log.Printf("dbg db json -- rec: %s\n",string(res))}
 
 	var jsonMap map[string]string
+//	var notesMap []jsNote
+
 	err := json.Unmarshal(res, &jsonMap)
 	if err != nil {
 		log.Printf("error -- db jsonMap: %v\n", err)
@@ -629,6 +635,7 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 		id := 0
 		wStr := ""
 		count := 0
+
 		for k, v := range jsonMap {
 			if k == "cmd" {continue}
 			if k == "Id" {
@@ -780,9 +787,9 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 	case "updN":
 		if han.dbg {fmt.Printf("dbg -- upd Note\n")}
 
-		PidStr, ok := jsonMap["Pid"]
+		PidStr, ok := jsonMap["pid"]
 		if !ok {
-			log.Printf("error -- no note id!\n")
+			log.Printf("error -- no person id!\n")
 			ctx.SetStatusCode(405)
 			return
 		}
@@ -794,30 +801,38 @@ func (han Handler)dbHandler(ctx *fasthttp.RequestCtx) {
 		}
 		if han.dbg {fmt.Printf("dbg -- pid: %d\n", pid)}
 
-		IdStr, ok := jsonMap["Id"]
+		noteStr, ok := jsonMap["notes"]
 		if !ok {
-			log.Printf("error -- no note id!\n")
+			log.Printf("error -- no notes!\n")
 			ctx.SetStatusCode(405)
 			return
 		}
-		id, err := strconv.Atoi(IdStr)
+		if han.dbg {fmt.Printf("dbg -- notes: %s\n", noteStr)}
+
+		var notesList []jsNote
+
+		err = json.Unmarshal([]byte(noteStr), &notesList)
 		if err != nil {
-			log.Printf("error -- note id not int: %v",err)
-			return
-		}
-		if han.dbg {fmt.Printf("dbg -- Id: %d\n", id)}
-
-		txtStr, ok := jsonMap["txt"]
-		if !ok {
-			log.Printf("error -- no note txt!\n")
-			ctx.SetStatusCode(405)
-			return
+			log.Printf("error -- db notesList: %v\n", err)
 		}
 
-		query:= fmt.Sprintf("update person set txt='%s' where id = $1 and pid = $2;", txtStr)
-	    tag, err := dbpool.Exec(ctx, query, id, pid)
-		if err != nil {log.Fatalf("error -- insert failed: %v\n", err)}
-    	fmt.Printf("tag: %s\n", tag.String())
+		if han.dbg {
+			fmt.Printf("dbg --  noteList: %d\n", len(notesList))
+			for i:=0; i<len(notesList); i++ {
+				fmt.Printf("%d: id: %d -- %s\n", i, notesList[i].Id, notesList[i].Txt)
+			}
+		}
+
+		for i:=0; i<len(notesList); i++ {
+			txtStr := notesList[i].Txt
+			id := notesList[i].Id
+			query:= fmt.Sprintf("update notes set txt='%s' where id = $1 and pid = $2;", txtStr)
+			if han.dbg {fmt.Printf("dbg -- query [id: %d, pid: %d] %s\n", id, pid, query)}
+	    	tag, err := dbpool.Exec(ctx, query, id, pid)
+			if err != nil {log.Fatalf("error -- update failed: %v\n", err)}
+	   	 	fmt.Printf("tag: %s\n", tag.String())
+		}
+
 		ctx.SetStatusCode(200)
 
 	default:
